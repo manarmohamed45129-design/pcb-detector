@@ -1,37 +1,54 @@
 # TraceScan: PCB Defect Detection (YOLO26 + Streamlit)
 
-AI visual inspection for printed circuit boards. Upload a board photo and TraceScan marks every defect, magnifies it, and gives a PASS / FAIL verdict in seconds.
+AI visual inspection for printed circuit boards. Upload a board photo and TraceScan marks every defect, magnifies it, tells you how to fix it, and gives a PASS / FAIL verdict in seconds.
+
+**Live demo:** https://pcb-detector-r9jv2gjjykycvz2aas7yfj.streamlit.app/
+
+No board at hand? Click **Try a random sample** in the app and it runs on one of the bundled test images.
 
 ## Why this project matters
 
-A printed circuit board (PCB) is the backbone of almost every electronic device. A tiny fault, such as a hairline break in a copper trace or a stray bridge between two tracks, can make a whole device fail or behave unpredictably.
+A printed circuit board (PCB) is the foundation of almost every electronic device, and its copper traces are only a fraction of a millimeter wide. A single hairline break or a stray bridge between two tracks can kill a device, or worse, let it pass testing and fail later in the field.
 
-- **Defects are tiny.** Many are only a few pixels wide, and they are easy to miss by eye, especially after hours of repetitive inspection.
-- **Manual inspection does not scale.** It is slow, tiring, and varies from one inspector to another.
-- **Late detection is expensive.** A fault found after components are soldered means scrapping or reworking the whole board. Caught at the bare-board stage, it costs almost nothing.
-- **Automation gives consistency.** The model applies the same standard to every board, at any hour, and records every result.
+Finding these faults is harder than it sounds:
 
-TraceScan shows how a small, fast object detector can act as a first-line quality gate on a production line.
+- **They are tiny.** Many defects are only a few pixels wide and look almost identical to normal traces, even under good lighting.
+- **People get tired.** After hours of repetitive inspection, attention drops and results vary from one inspector to the next.
+- **Manual inspection does not scale.** Production lines make thousands of boards, and a human cannot check each one with the same care.
+- **Late detection is expensive.** A fault found after components are soldered means scrapping or reworking a finished assembly. On the bare board, the same fault costs almost nothing to catch.
+
+TraceScan shows how a small, fast object detector can act as a **first-line quality gate**: it applies the same standard to every board at any hour, points to the exact location of each fault, suggests how to repair it, and keeps a record of every result.
 
 ## Features
 
 | Feature | What it does |
 |---|---|
 | **Defect detection** | Finds and classifies 6 PCB defect types, each drawn in its own color. |
-| **Magnifier lens** | Hover over the result to magnify it, scroll to change zoom, click to open a full-screen zoom and pan viewer. |
-| **Defect close-ups** | Every defect is cropped and enlarged in its own card with name, confidence and size. Click a card to see it on the full board. |
+| **Scan animation** | A scan beam sweeps over the board and reveals the detections, with a badge showing how many defects were found. |
+| **Magnifier lens** | Hover over the result to magnify it, scroll to change the zoom, click to open a full-screen zoom and pan viewer. |
+| **Defect close-ups** | Every defect is cropped and enlarged in its own card with name, confidence, size and severity. Click a card to see it on the full board. |
+| **Repair guide** | For each defect type found: what it is, why it matters, likely causes, step-by-step repair, how to verify, and tools needed. Sorted by severity, so Critical defects come first. |
 | **Batch inspection** | Upload many boards at once. Get PASS / FAIL per board, yield, defects by type, and a CSV export. |
+| **Random sample boards** | One click loads a random sample board so you can try the app without any files. |
+| **Adjustable sensitivity** | A confidence slider trades missed defects against false alarms. Labels and scores can be toggled on or off. |
+| **Reports** | Download the annotated image, or a CSV with position, size, confidence, severity and suggested fix for every detection. |
 | **About the model** | Real test-set metrics, per-class table, confusion matrix and PR / F1 curves, so the numbers can be verified. |
-| **Adjustable sensitivity** | A confidence slider trades missed defects against false alarms. |
-| **Reports** | Download the annotated image or a CSV of all detections. |
 
 ## Defect classes
 
 `missing_hole` · `mouse_bite` · `open_circuit` · `short` · `spur` · `spurious_copper`
 
+## How it works
+
+1. **Upload** a board image (JPG or PNG), or load a random sample.
+2. **Detect:** YOLO26s runs at 640 px and returns boxes, classes and confidence scores.
+3. **Annotate:** each defect type gets its own high-contrast color.
+4. **Explain:** close-ups and a repair guide are generated for every defect found.
+5. **Decide:** the board passes if nothing is found at the chosen sensitivity, otherwise it fails.
+
 ## Model results
 
-Evaluated on a held-out test split (69 images, 292 labeled defects).
+Evaluated on a held-out test split the model never saw during training (69 images, 292 labeled defects).
 
 | Metric | Value |
 |---|---|
@@ -50,12 +67,14 @@ Evaluated on a held-out test split (69 images, 292 labeled defects).
 | spur | 0.897 | 0.815 | 0.945 | 0.449 |
 | spurious_copper | 0.977 | 0.833 | 0.902 | 0.469 |
 
+**Model:** YOLO26s, 9.47 M parameters, 20.8 GFLOPs.
+
 ## Resources
 
 - **Dataset (Roboflow):** [pcb-defect-detection](https://app.roboflow.com/manar-nqk6x/pcb-defect-detection-9ewqw-rzuwm/1)
 - **Training notebook in this repo:** [`yolo26_PCB Defection.ipynb`](<./yolo26_PCB Defection.ipynb>)
-- **Based on the Roboflow template:** [https://colab.research.google.com/drive/16Q61DbOEVEIuMkxFmNUhOG7NF-SpYTB9?usp=sharing)
-- **Live demo:** Try the app here: https://pcb-detector-r9jv2gjjykycvz2aas7yfj.streamlit.app/
+- **Based on the Roboflow template:** [Train YOLO26 on a custom dataset (Colab)](https://colab.research.google.com/drive/16Q61DbOEVEIuMkxFmNUhOG7NF-SpYTB9?usp=sharing)
+- **Live demo:** https://pcb-detector-r9jv2gjjykycvz2aas7yfj.streamlit.app/
 
 ## Project structure
 
@@ -67,23 +86,25 @@ pcb-detector/
 ├── packages.txt            # system packages for Streamlit Cloud
 ├── .streamlit/
 │   └── config.toml         # theme and server settings
-├── samples/                # sample board images
+├── samples/                # sample boards for the random-sample button
 ├── results/                # evaluation plots shown in "About the model"
 └── yolo26_PCB Defection.ipynb
 ```
 
-> `config.toml` must live inside a folder named `.streamlit` or Streamlit will ignore it.
+> `config.toml` must live inside a folder named `.streamlit`, or Streamlit will ignore it.
 
 ## How it was built
 
 1. Labeled PCB defect images were exported from Roboflow in YOLO26 format.
 2. A pretrained `yolo26s` model was fine-tuned for up to 80 epochs (batch 16, image size 640, early stopping with patience 20).
-3. The best weights were evaluated on the test split, and the plots were exported.
+3. The best weights were evaluated on the test split, and the evaluation plots were exported.
 4. `best.pt` is loaded by the Streamlit app and runs on CPU.
 
 ## Run locally
 
 ```bash
+git clone https://github.com/manarmohamed45129-design/pcb-detector
+cd pcb-detector
 pip install -r requirements.txt
 streamlit run app.py
 ```
@@ -96,7 +117,6 @@ streamlit run app.py
 4. Go to [share.streamlit.io](https://share.streamlit.io), pick the repository and `app.py`, then deploy.
 
 
-- Training on more boards and lighting conditions to improve `spur` and `spurious_copper`
 
 ## Tech stack
 
