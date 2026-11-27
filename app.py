@@ -309,6 +309,15 @@ iframe{border:0 !important;}
 [data-testid="stFileUploaderDropzone"] small,[data-testid="stFileUploaderDropzone"] span,[data-testid="stFileUploaderDropzone"] div{color:#c9d9d0 !important;}
 [data-testid="stFileUploaderDropzone"] svg{color:var(--copper) !important;fill:var(--copper) !important;}
 [data-testid="stFileUploaderFile"] *{color:var(--text) !important;}
+/* ---- tabs fix v2: new Streamlit markup (role=tab / data-testid=stTab) ---- */
+[role="tablist"]{gap:8px !important;}
+[role="tab"],button[data-testid="stTab"]{background:rgba(255,255,255,.07) !important;border:1px solid rgba(255,255,255,.2) !important;border-bottom:none !important;border-radius:10px 10px 0 0 !important;padding:10px 20px !important;opacity:1 !important;}
+[role="tab"],[role="tab"] *{color:#e9f2ec !important;opacity:1 !important;}
+[role="tab"] p{font-size:15px !important;font-weight:600 !important;}
+[role="tab"]:hover{background:rgba(240,180,60,.18) !important;border-color:rgba(240,180,60,.7) !important;}
+[role="tab"]:hover,[role="tab"]:hover *{color:#ffd479 !important;}
+[role="tab"][aria-selected="true"]{background:rgba(240,180,60,.20) !important;border-color:#f0b43c !important;box-shadow:inset 0 -3px 0 #f0b43c;}
+[role="tab"][aria-selected="true"],[role="tab"][aria-selected="true"] *{color:#f0b43c !important;font-weight:700 !important;}
 @media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none !important;transition:none !important;}}
 """
 CSS = " ".join(l.strip() for l in CSS.splitlines()).replace("__PATTERN__", PATTERN)
