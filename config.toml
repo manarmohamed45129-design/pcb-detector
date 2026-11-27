@@ -4,3 +4,14 @@ primaryColor = "#f0b43c"
 backgroundColor = "#06231b"
 secondaryBackgroundColor = "#0f3a2c"
 textColor = "#f1f7f3"
+font = "sans serif"
+
+[server]
+# batch inspection: allow bigger board photos
+maxUploadSize = 50
+
+[browser]
+gatherUsageStats = false
+
+[client]
+toolbarMode = "minimal"
