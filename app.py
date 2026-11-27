@@ -29,6 +29,91 @@ CLASS_STATS = [
     ("spur", 6, 27, 0.897, 0.815, 0.945, 0.449),
     ("spurious_copper", 14, 60, 0.977, 0.833, 0.902, 0.469),
 ]
+# Repair knowledge base: general shop-floor guidance for each defect type.
+# Always confirm against your own quality standard (e.g. IPC-A-600) before reworking a board.
+SEV_RANK = {"Critical": 0, "High": 1, "Medium": 2}
+SEV_COLOR = {"Critical": "#ff5c5c", "High": "#ff9f43", "Medium": "#f0b43c"}
+KNOWLEDGE = {
+    "missing_hole": {
+        "sev": "High",
+        "hint": "Re-drill at the marked position with the correct bit size, then check the pad is intact.",
+        "what": "A hole that should have been drilled is absent. Component leads or vias have nowhere to go.",
+        "impact": "A through-hole part cannot be mounted, or a via fails to connect the layers, so the circuit is incomplete.",
+        "causes": ["Drill bit broke or was worn out", "Drill program skipped a position", "Wrong tool or panel shifted during drilling"],
+        "fix": ["Compare the position with the drawing or Gerber to confirm the hole is really required",
+                "Re-drill with the correct bit size, aligned to the pad center",
+                "Deburr the hole and clean away dust",
+                "If the pad or surrounding traces are damaged, scrap the board instead"],
+        "verify": "Insert a lead or gauge pin. For vias, test continuity between the layers.",
+        "tools": "Precision drill or drill press, correct bit, deburring tool, magnifier",
+    },
+    "mouse_bite": {
+        "sev": "Medium",
+        "hint": "Check the remaining trace width. If it is too thin, bridge it with solder wire or conductive epoxy.",
+        "what": "Small bite-shaped notches along a copper edge or trace, leaving it narrower than designed.",
+        "impact": "Higher resistance and local heating, and the trace can crack later under load or vibration. A deep bite can become an open circuit.",
+        "causes": ["Over-etching", "Rough routing or breaking off panel tabs", "Mechanical damage during handling"],
+        "fix": ["Measure the remaining trace width against the design minimum",
+                "If it is still within tolerance, accept it and note it",
+                "If it is too thin, reinforce it by flowing solder along the trace or by bridging with fine copper foil or conductive epoxy",
+                "Clean with isopropyl alcohol and re-coat the area with solder mask or lacquer"],
+        "verify": "Measure trace width under a magnifier and check continuity with a multimeter.",
+        "tools": "Magnifier or microscope, soldering iron, copper foil or conductive epoxy, IPA",
+    },
+    "open_circuit": {
+        "sev": "Critical",
+        "hint": "Bridge the break with fine jumper wire or conductive epoxy, then confirm continuity with a multimeter.",
+        "what": "A copper trace is broken, so current cannot flow from one end to the other.",
+        "impact": "The connection is dead. The circuit will not work, or will work only intermittently.",
+        "causes": ["Over-etching or a scratch through the copper", "Dust or a flaw in the resist during etching", "Thermal or mechanical stress cracks"],
+        "fix": ["Locate both ends of the break and scrape the solder mask off about 1 mm on each side",
+                "Bridge the gap with thin enameled wire (about 30 AWG), solder both ends",
+                "For very fine traces use copper foil or silver conductive epoxy instead",
+                "Secure the wire with a drop of epoxy, then re-coat the exposed copper"],
+        "verify": "Continuity test with a multimeter between the two ends of the net.",
+        "tools": "Fine soldering iron, 30 AWG wire, scalpel, multimeter, conductive epoxy",
+    },
+    "short": {
+        "sev": "Critical",
+        "hint": "Cut the unwanted copper bridge with a sharp knife, then confirm the two nets are isolated.",
+        "what": "Copper (or solder) connects two conductors that must stay separate.",
+        "impact": "A short circuit. It can stop the board working, overheat, or damage components when powered.",
+        "causes": ["Under-etching that leaves copper between traces", "Solder bridge", "Conductive debris or a resist defect"],
+        "fix": ["Power the board off and do not test it with power until fixed",
+                "Cut through the bridge with a sharp scalpel or a fine rotary tool",
+                "Remove all copper residue so no thin strand remains",
+                "Clean with IPA and re-coat the area with solder mask"],
+        "verify": "Resistance test between the two nets: they should read open, not near zero ohms.",
+        "tools": "Scalpel or rotary tool, magnifier, multimeter, IPA",
+    },
+    "spur": {
+        "sev": "Medium",
+        "hint": "Trim the protrusion flush with the trace. It is urgent only if it nearly touches a neighbor.",
+        "what": "A small spike of copper sticking out from a trace.",
+        "impact": "It reduces the clearance to the next conductor and can turn into a short if it gets close. It can also add noise on sensitive signals.",
+        "causes": ["Incomplete etching", "Flaw in the resist pattern"],
+        "fix": ["Measure the gap between the spur and the nearest conductor",
+                "Trim it flush with a sharp scalpel or a fine file",
+                "Clean the area and check clearance against the design rule",
+                "Re-coat with solder mask if the copper is left exposed"],
+        "verify": "Check the clearance under magnification and test isolation between neighboring nets.",
+        "tools": "Scalpel or fine file, magnifier, IPA",
+    },
+    "spurious_copper": {
+        "sev": "High",
+        "hint": "Remove the stray copper completely, then test isolation of nearby traces.",
+        "what": "Leftover copper where it should have been etched away: an island or a loose patch.",
+        "impact": "It can short neighboring traces, break isolation in high-voltage areas, or act as an antenna that picks up noise.",
+        "causes": ["Under-etching or exhausted etchant", "Contaminated resist", "Insufficient etch time"],
+        "fix": ["Check the Gerber or drawing to confirm that copper should not be there",
+                "Scrape or cut away the copper with a scalpel or fine rotary tool",
+                "Make sure no copper dust remains, then clean with IPA",
+                "Re-coat with solder mask or lacquer"],
+        "verify": "Test isolation between the nearby nets with a multimeter.",
+        "tools": "Scalpel or rotary tool, magnifier, multimeter, IPA",
+    },
+}
+
 PLOTS = {
     "Confusion matrix": "confusion_matrix.png",
     "Confusion (normalized)": "confusion_matrix_normalized.png",
@@ -192,6 +277,18 @@ color:var(--text);}
 .stTabs [aria-selected="true"]{color:var(--copper) !important;}
 .stTabs [data-baseweb="tab-highlight"]{background:var(--copper) !important;}
 iframe{border:0 !important;}
+.gh{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+.gh i{width:12px;height:12px;border-radius:3px;display:inline-block;}
+.gh b{font-size:16px;text-transform:capitalize;}
+.sv{padding:2px 10px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#1a1204;}
+.gc{font-size:12.5px;color:var(--muted);margin-left:auto;}
+.gg{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;}
+.gg h5{margin:0 0 6px;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--copper);font-weight:700;}
+.gg p,.gg li{font-size:13.5px;line-height:1.6;color:#dbe6df;margin:0;}
+.gg ul,.gg ol{margin:0;padding-left:18px;}
+.gv{margin-top:12px;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.22);font-size:13px;line-height:1.6;color:#dbe6df;}
+.gv b{color:var(--cyan);}
+.disc{margin:8px 0 4px;font-size:12px;color:var(--muted);}
 @media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none !important;transition:none !important;}}
 """
 CSS = " ".join(l.strip() for l in CSS.splitlines()).replace("__PATTERN__", PATTERN)
@@ -362,6 +459,7 @@ def gallery_html(big_src, items):
         + ".bar i{display:block;height:100%;border-radius:3px;background:var(--c);transform-origin:left;animation:grow 1s .3s backwards}"
         + "@keyframes grow{from{transform:scaleX(0)}to{transform:none}}"
         + ".sub{margin-top:9px;font:11.5px ui-monospace,Menlo,monospace;color:#9bb8aa;display:flex;justify-content:space-between;gap:6px}"
+        + ".fx{margin-top:10px;padding-top:9px;border-top:1px dashed rgba(255,255,255,.16);font-size:12px;line-height:1.5;color:#c9d9d0}.fx b{color:#f0b43c}"
         + ".lens{width:96px;height:96px}.lens .badge{bottom:-30px}"
         + ".lens .ring{inset:-8px}.lens .ring2{inset:-14px}"
     )
@@ -374,11 +472,11 @@ def gallery_html(big_src, items):
 const g=document.getElementById('g');
 ITEMS.forEach(function(it,i){
   const c=document.createElement('div');c.className='card';c.style.setProperty('--c',it.color);c.style.animationDelay=(i*.05)+'s';
-  const sev=it.conf>=.8?'high':it.conf>=.6?'medium':'low';
-  c.innerHTML='<div class="pic"><img alt=""><span class="idx">#'+it.idx+'</span><span class="sev">'+sev+' conf</span><div class="lens"></div></div>'
+  const sc={Critical:'#ff5c5c',High:'#ff9f43',Medium:'#f0b43c'}[it.sev]||'#f0b43c';
+  c.innerHTML='<div class="pic"><img alt=""><span class="idx">#'+it.idx+'</span><span class="sev" style="border-color:'+sc+';color:'+sc+'">'+it.sev+'</span><div class="lens"></div></div>'
    +'<div class="meta"><div class="nm"><i></i>'+it.name+'</div><div class="cf"><span>confidence</span><b>'+Math.round(it.conf*100)+'%</b></div>'
    +'<div class="bar"><i style="width:'+Math.round(it.conf*100)+'%"></i></div>'
-   +'<div class="sub"><span>'+it.w+' &times; '+it.h+' px</span><span>x '+it.cx+' &middot; y '+it.cy+'</span></div></div>';
+   +'<div class="sub"><span>'+it.w+' &times; '+it.h+' px</span><span>x '+it.cx+' &middot; y '+it.cy+'</span></div><div class="fx"><b>Fix:</b> '+it.hint+'</div></div>';
   g.appendChild(c);
   const im=c.querySelector('img'),lens=c.querySelector('.lens'),pic=c.querySelector('.pic');im.src=it.crop;lens.innerHTML=LENS_HTML;
   attachLens(pic,im,lens,{R:48,Z:2.2,src:it.crop,onClick:function(){tsOpen(BIG,'#'+it.idx+' \u00b7 '+it.name+' \u00b7 '+Math.round(it.conf*100)+'% confidence',it.fx,it.fy,1,it.px);}});
@@ -569,6 +667,8 @@ def render_gallery(img, predicted, det):
                 "fx": ((x1 + x2) / 2) / img.size[0],
                 "fy": ((y1 + y2) / 2) / img.size[1],
                 "px": max(x2 - x1, y2 - y1) * sc,
+                "sev": KNOWLEDGE.get(model.names[det["cls"][i]], {}).get("sev", "Medium"),
+                "hint": KNOWLEDGE.get(model.names[det["cls"][i]], {}).get("hint", "Inspect and rework per your standard."),
             }
         )
     st.markdown("<div class='label'>Defect close-ups</div>", unsafe_allow_html=True)
@@ -578,9 +678,49 @@ def render_gallery(img, predicted, det):
         unsafe_allow_html=True,
     )
     rows = -(-len(items) // 4)
-    show_html(gallery_html(big_src, items), rows * 330 + 20)
+    show_html(gallery_html(big_src, items), rows * 400 + 20)
+    render_repair_guide(det)
     if len(order) > len(shown):
         st.caption(f"Showing the {len(shown)} most confident of {len(order)} defects.")
+
+
+def render_repair_guide(det):
+    """Per-defect-type repair notes for the technician, most severe first."""
+    counts = count_classes(det)
+    found = [(model.names[cid], c) for cid, c in counts.items() if model.names[cid] in KNOWLEDGE]
+    if not found:
+        return
+    found.sort(key=lambda t: (SEV_RANK[KNOWLEDGE[t[0]]["sev"]], -t[1]))
+    st.markdown("<div class='label'>Repair guide</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='note'>What each defect is, why it matters and how to fix it. Defect types are sorted by severity, "
+        "so repair the Critical ones first.</div>",
+        unsafe_allow_html=True,
+    )
+    for k, (cname, c) in enumerate(found):
+        info = KNOWLEDGE[cname]
+        cid = [i for i, v in model.names.items() if v == cname][0]
+        col = rgb_css(PALETTE[cid % len(PALETTE)])
+        label = f"{pretty(cname).title()}  -  {c} found  -  {info['sev']}"
+        with st.expander(label, expanded=(k == 0)):
+            st.markdown(
+                f"<div class='gh'><i style='background:{col}'></i><b>{pretty(cname)}</b>"
+                f"<span class='sv' style='background:{SEV_COLOR[info['sev']]}'>{info['sev']}</span>"
+                f"<span class='gc'>{c} found on this board</span></div>"
+                "<div class='gg'>"
+                f"<div><h5>What it is</h5><p>{info['what']}</p></div>"
+                f"<div><h5>Why it matters</h5><p>{info['impact']}</p></div>"
+                "<div><h5>Likely causes</h5><ul>" + "".join(f"<li>{x}</li>" for x in info["causes"]) + "</ul></div>"
+                "<div><h5>How to repair</h5><ol>" + "".join(f"<li>{x}</li>" for x in info["fix"]) + "</ol></div>"
+                "</div>"
+                f"<div class='gv'><b>Verify:</b> {info['verify']}<br><b>Tools:</b> {info['tools']}</div>",
+                unsafe_allow_html=True,
+            )
+    st.markdown(
+        "<div class='disc'>General guidance only. Confirm each repair against your quality standard "
+        "(for example IPC-A-600) and your board's design rules. Boards for critical applications may need to be scrapped, not reworked.</div>",
+        unsafe_allow_html=True,
+    )
 
 
 def defect_table(det):
@@ -596,6 +736,8 @@ def defect_table(det):
                 "Y": int((y1 + y2) / 2),
                 "Width px": int(x2 - x1),
                 "Height px": int(y2 - y1),
+                "Severity": KNOWLEDGE.get(model.names[det["cls"][i]], {}).get("sev", ""),
+                "Suggested fix": KNOWLEDGE.get(model.names[det["cls"][i]], {}).get("hint", ""),
             }
         )
     return pd.DataFrame(rows)
