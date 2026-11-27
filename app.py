@@ -1,6 +1,7 @@
 import base64
 import io
 import json
+import random
 import time
 from collections import Counter
 from pathlib import Path
@@ -838,8 +839,11 @@ if "sample" not in st.session_state:
     st.session_state["sample"] = None
 
 
-def pick_sample(path):
-    st.session_state["sample"] = str(path)
+def pick_sample(paths):
+    """Pick a random sample board, never the same one twice in a row."""
+    cur = st.session_state.get("sample")
+    pool = [p for p in paths if str(p) != cur] or list(paths)
+    st.session_state["sample"] = str(random.choice(pool))
 
 
 def clear_sample():
@@ -883,15 +887,22 @@ with tab_one:
     with sample_col:
         if SAMPLES:
             thumb, info = st.columns([1, 1.3])
+            active = st.session_state["sample"] if (st.session_state["sample"] and not file) else None
             with thumb:
-                st.image(str(SAMPLES[0]))
+                st.image(active or str(SAMPLES[0]))
             with info:
                 st.markdown(
-                    "<div class='note'>No board at hand?<br>Try a ready-made sample.</div>",
+                    "<div class='note'>No board at hand?<br>"
+                    f"Try one of {len(SAMPLES)} ready-made samples, picked at random.</div>",
                     unsafe_allow_html=True,
                 )
-                st.button("Try sample board", key="sample_btn", on_click=pick_sample, args=(SAMPLES[0],))
-                if st.session_state["sample"] and not file:
+                st.button(
+                    "\U0001F3B2 Another random sample" if active else "\U0001F3B2 Try a random sample",
+                    key="sample_btn",
+                    on_click=pick_sample,
+                    args=(SAMPLES,),
+                )
+                if active:
                     st.button("Clear", key="clear_btn", on_click=clear_sample)
 
     raw, fname = None, "board"
