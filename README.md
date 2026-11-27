@@ -50,8 +50,6 @@ Evaluated on a held-out test split (69 images, 292 labeled defects).
 | spur | 0.897 | 0.815 | 0.945 | 0.449 |
 | spurious_copper | 0.977 | 0.833 | 0.902 | 0.469 |
 
-**Limitations.** `spur` and `spurious_copper` have the lowest recall. They are small copper blemishes that look similar to normal traces. Lowering the sensitivity slider recovers some of them, at the cost of more false alarms. The dataset is also fairly small, so results on boards from a very different camera or lighting setup may vary.
-
 ## Resources
 
 - **Dataset (Roboflow):** [pcb-defect-detection](https://app.roboflow.com/manar-nqk6x/pcb-defect-detection-9ewqw-rzuwm/1)
@@ -96,11 +94,7 @@ streamlit run app.py
 3. Push everything to a GitHub repository, including `samples/` and `results/`.
 4. Go to [share.streamlit.io](https://share.streamlit.io), pick the repository and `app.py`, then deploy.
 
-## Ideas for next steps
 
-- Annotated ZIP export and a one-page PDF report for each batch
-- Defect heatmap to spot problems that repeat in the same board location
-- Yield threshold that flags a batch as rejected
 - Training on more boards and lighting conditions to improve `spur` and `spurious_copper`
 
 ## Tech stack
