@@ -289,6 +289,14 @@ iframe{border:0 !important;}
 .gv{margin-top:12px;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.22);font-size:13px;line-height:1.6;color:#dbe6df;}
 .gv b{color:var(--cyan);}
 .disc{margin:8px 0 4px;font-size:12px;color:var(--muted);}
+.stTabs [data-baseweb="tab"]{color:#c9d9d0 !important;}
+.stTabs [data-baseweb="tab"] p{color:#c9d9d0 !important;font-size:15px;font-weight:600;}
+.stTabs [aria-selected="true"],.stTabs [aria-selected="true"] p{color:var(--copper) !important;}
+.stTabs [data-baseweb="tab-border"]{background:var(--line) !important;}
+[data-testid="stExpander"]{border:1px solid var(--line) !important;border-radius:12px !important;background:rgba(0,0,0,.22) !important;margin-bottom:10px;}
+[data-testid="stExpander"] details,[data-testid="stExpander"] summary{background:transparent !important;color:var(--text) !important;}
+[data-testid="stExpander"] summary p,[data-testid="stExpander"] summary span{color:var(--text) !important;font-weight:600;}
+[data-testid="stExpander"] summary svg{color:var(--copper) !important;fill:var(--copper) !important;}
 @media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none !important;transition:none !important;}}
 """
 CSS = " ".join(l.strip() for l in CSS.splitlines()).replace("__PATTERN__", PATTERN)
@@ -370,8 +378,8 @@ let HOST=window;try{void window.parent.document.body;HOST=window.parent;}catch(e
  if(!HOST.tsLB&&!D.getElementById('ts-lb-script')){const s=D.createElement('script');s.id='ts-lb-script';s.textContent=LB_SRC;D.head.appendChild(s);}
 })();
 function tsOpen(src,cap,fx,fy,z,px){if(HOST.tsLB)HOST.tsLB.open(src,cap,fx,fy,z,px);}
-function fitFrame(){try{const fe=window.frameElement;if(fe){fe.style.height=(document.documentElement.scrollHeight+2)+'px';}}catch(e){}}
-window.addEventListener('load',fitFrame);
+function fitFrame(){try{const fe=window.frameElement;if(fe){fe.style.height=(Math.ceil(document.body.getBoundingClientRect().height)+4)+'px';}}catch(e){}}
+window.addEventListener('load',fitFrame);window.addEventListener('resize',fitFrame);setTimeout(fitFrame,300);setTimeout(fitFrame,1200);
 if(window.ResizeObserver){new ResizeObserver(fitFrame).observe(document.body);}
 """
 )
@@ -418,23 +426,73 @@ const LENS_HTML='<div class="glass"></div><div class="ring"></div><div class="ri
 """
 
 
-def viewer_html(src, caption, lens_zoom=3.0):
-    """Image with a magnifier lens that follows the mouse. Click opens the full-screen zoom viewer."""
-    return (
-        "<style>" + BASE_CSS
-        + "#wrap{position:relative;line-height:0;border-radius:10px;border:1px solid rgba(255,255,255,.12);box-shadow:0 10px 30px rgba(0,0,0,.4);overflow:hidden}"
-        + "#im{width:100%;display:block}"
-        + "#lens{width:190px;height:190px}</style>"
-        "<div id='wrap'><img id='im' alt=''><div class='lens' id='lens'></div></div>"
-        "<div class='hint'><span>Hover to magnify</span><kbd>scroll</kbd><span>changes zoom</span><kbd>click</kbd><span>opens full view</span></div>"
-        "<script>" + PRELUDE + LENS_JS
-        + "const SRC=" + json.dumps(src) + ",CAP=" + json.dumps(caption) + ";"
-        + "const im=document.getElementById('im'),lens=document.getElementById('lens'),wrap=document.getElementById('wrap');"
-        + "lens.innerHTML=LENS_HTML;im.src=SRC;"
-        + "attachLens(wrap,im,lens,{R:95,Z:" + str(lens_zoom) + ",src:SRC,onClick:function(fx,fy,z){tsOpen(SRC,CAP,fx,fy,Math.max(2,z*.9));}});"
-        + "im.addEventListener('load',fitFrame);"
-        + "</script>"
+def viewer_html(src, caption, lens_zoom=3.0, base_src=None, badge=None, badge_ok=False):
+    """Image with a magnifier lens. Click opens the full-screen viewer.
+    With base_src, a scan beam sweeps once over the original and reveals the predicted image (src) under it."""
+    css = (
+        BASE_CSS
+        + "#wrap{position:relative;line-height:0;border-radius:10px;border:1px solid rgba(255,255,255,.12);box-shadow:0 10px 30px rgba(0,0,0,.4);overflow:hidden;transition:box-shadow .4s}"
+        + "#wrap.flash{animation:flash .95s ease-out}"
+        + "@keyframes flash{0%{box-shadow:0 0 0 2px #5ad7ff,0 0 46px rgba(90,215,255,.8)}100%{box-shadow:0 10px 30px rgba(0,0,0,.4)}}"
+        + "#im{width:100%;display:block;transition:filter .5s}"
+        + "#pr{position:absolute;left:0;top:0;width:100%;height:100%;display:none;clip-path:inset(0 0 100% 0)}"
+        + ".beam{position:absolute;left:0;right:0;top:0;height:0;z-index:4;pointer-events:none;display:none}"
+        + ".beam:before{content:'';position:absolute;left:0;right:0;bottom:0;height:90px;background:linear-gradient(to top,rgba(90,215,255,.38),transparent)}"
+        + ".beam:after{content:'';position:absolute;left:0;right:0;bottom:-1.5px;height:3px;background:#bff1ff;box-shadow:0 0 12px 3px #5ad7ff,0 0 44px 10px rgba(90,215,255,.55)}"
+        + ".found{position:absolute;left:12px;top:12px;z-index:6;padding:6px 14px;border-radius:999px;font:700 12px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.05em;line-height:1.4;"
+        + "background:#ff5c5c;color:#1c0707;box-shadow:0 0 22px rgba(255,92,92,.6);transform:scale(0);animation:pop .55s cubic-bezier(.2,1.7,.4,1) forwards}"
+        + ".found.ok{background:#4ee08a;color:#05210f;box-shadow:0 0 22px rgba(78,224,138,.6)}"
+        + "@keyframes pop{from{transform:scale(0) rotate(-6deg)}to{transform:scale(1)}}"
+        + "#lens{width:190px;height:190px}"
+        + "#rp{margin-left:auto;cursor:pointer;padding:3px 11px;border-radius:999px;border:1px solid rgba(240,180,60,.6);background:rgba(240,180,60,.12);color:#f1f7f3;font:600 11.5px system-ui}"
+        + "#rp:hover{background:rgba(240,180,60,.3)}"
     )
+    scan = base_src is not None
+    html = (
+        "<style>" + css + "</style>"
+        "<div id='wrap'><img id='im' alt=''>"
+        + ("<img id='pr' alt=''><div class='beam' id='beam'></div>" if scan else "")
+        + "<div class='lens' id='lens'></div></div>"
+        "<div class='hint'><span>Hover to magnify</span><kbd>scroll</kbd><span>changes zoom</span><kbd>click</kbd><span>opens full view</span>"
+        + ("<button id='rp'>Replay scan</button>" if scan else "")
+        + "</div><script>" + PRELUDE + LENS_JS
+        + "const SRC=" + json.dumps(src) + ",CAP=" + json.dumps(caption) + ",BASE=" + json.dumps(base_src) + ",BADGE=" + json.dumps(badge) + ",OK=" + ("true" if badge_ok else "false") + ";"
+        + r"""
+const im=document.getElementById('im'),lens=document.getElementById('lens'),wrap=document.getElementById('wrap');
+lens.innerHTML=LENS_HTML;
+const PR=document.getElementById('pr'),beam=document.getElementById('beam');
+let raf=0;
+function showBadge(){
+  const old=wrap.querySelector('.found');if(old)old.remove();
+  if(!BADGE)return;const b=document.createElement('div');b.className='found'+(OK?' ok':'');b.textContent=BADGE;wrap.appendChild(b);
+}
+function runScan(){
+  cancelAnimationFrame(raf);const old=wrap.querySelector('.found');if(old)old.remove();
+  const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  PR.style.display='block';
+  if(reduce){PR.style.clipPath='none';im.style.filter='none';showBadge();return;}
+  im.style.filter='brightness(.7) saturate(.55)';PR.style.clipPath='inset(0 0 100% 0)';beam.style.display='block';beam.style.top='0%';
+  const D=2000,t0=performance.now();
+  (function step(t){
+    const p=Math.min(1,Math.max(0,(t-t0)/D)),e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+    PR.style.clipPath='inset(0 0 '+((1-e)*100)+'% 0)';beam.style.top=(e*100)+'%';
+    if(p<1){raf=requestAnimationFrame(step);}
+    else{beam.style.display='none';PR.style.clipPath='none';im.style.filter='none';wrap.classList.remove('flash');void wrap.offsetWidth;wrap.classList.add('flash');showBadge();}
+  })(t0);
+}
+if(BASE){
+  im.src=BASE;
+  PR.addEventListener('load',function(){runScan();fitFrame();});
+  PR.src=SRC;
+  document.getElementById('rp').addEventListener('click',runScan);
+}else{
+  im.src=SRC;
+}
+attachLens(wrap,im,lens,{R:95,Z:""" + str(lens_zoom) + r""",src:SRC,onClick:function(fx,fy,z){tsOpen(SRC,CAP,fx,fy,Math.max(2,z*.9));}});
+im.addEventListener('load',fitFrame);
+</script>"""
+    )
+    return html
 
 
 def gallery_html(big_src, items):
@@ -635,9 +693,13 @@ def show_html(html, height):
         components.html(html, height=int(height))
 
 
-def render_viewer(predicted, caption, width_guess=540):
+def render_viewer(predicted, caption, width_guess=540, original=None, n=None):
     src, (w, h) = data_uri(predicted)
-    show_html(viewer_html(src, caption), int(width_guess * h / w) + 40)
+    base = badge = None
+    if original is not None:
+        base, _ = data_uri(original)
+        badge = "CLEAN \u00b7 no defects" if not n else f"{n} DEFECT{'S' if n != 1 else ''} FOUND"
+    show_html(viewer_html(src, caption, base_src=base, badge=badge, badge_ok=(n == 0)), int(width_guess * h / w) + 40)
 
 
 def render_gallery(img, predicted, det):
@@ -678,7 +740,7 @@ def render_gallery(img, predicted, det):
         unsafe_allow_html=True,
     )
     rows = -(-len(items) // 4)
-    show_html(gallery_html(big_src, items), rows * 400 + 20)
+    show_html(gallery_html(big_src, items), rows * 340 + 20)
     render_repair_guide(det)
     if len(order) > len(shown):
         st.caption(f"Showing the {len(shown)} most confident of {len(order)} defects.")
@@ -864,7 +926,7 @@ with tab_one:
                 "<span class='mark-pred'></span>",
                 unsafe_allow_html=True,
             )
-            render_viewer(predicted, f"{fname} \u00b7 {n} defect{'s' if n != 1 else ''}")
+            render_viewer(predicted, f"{fname} \u00b7 {n} defect{'s' if n != 1 else ''}", original=img, n=n)
 
         st.markdown("<div class='label'>Summary</div>", unsafe_allow_html=True)
         sum_l, sum_r = st.columns(2, gap="large")
@@ -1017,7 +1079,7 @@ with tab_batch:
         bpred = draw_boxes(bimg, d, model.names, True, True) if d["cls"] else bimg
         bl, br = st.columns([3, 2], gap="large")
         with bl:
-            render_viewer(bpred, f"{nm} \u00b7 {len(d['cls'])} defects", width_guess=700)
+            render_viewer(bpred, f"{nm} \u00b7 {len(d['cls'])} defects", width_guess=700, original=bimg, n=len(d['cls']))
         with br:
             st.markdown(verdict_html(len(d["cls"])), unsafe_allow_html=True)
             if d["cls"]:
