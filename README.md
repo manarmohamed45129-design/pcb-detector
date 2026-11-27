@@ -54,7 +54,7 @@ Evaluated on a held-out test split (69 images, 292 labeled defects).
 
 - **Dataset (Roboflow):** [pcb-defect-detection](https://app.roboflow.com/manar-nqk6x/pcb-defect-detection-9ewqw-rzuwm/1)
 - **Training notebook in this repo:** [`yolo26_PCB Defection.ipynb`](<./yolo26_PCB Defection.ipynb>)
-- **Based on the Roboflow template:** [Train YOLO26 on a custom dataset (Colab)](https://colab.research.google.com/github/roboflow-ai/notebooks/blob/main/notebooks/train-yolo26-object-detection-on-custom-dataset.ipynb)
+- **Based on the Roboflow template:** [https://colab.research.google.com/drive/16Q61DbOEVEIuMkxFmNUhOG7NF-SpYTB9?usp=sharing)
 - **Live demo:** Try the app here: https://pcb-detector-r9jv2gjjykycvz2aas7yfj.streamlit.app/
 
 ## Project structure
